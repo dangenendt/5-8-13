@@ -1,0 +1,8 @@
+# Biome ignore file
+*.css
+node_modules/
+.next/
+out/
+dist/
+build/
+app/**/*.css
