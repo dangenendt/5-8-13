@@ -14,44 +14,71 @@ export default function WebSocketTestPage() {
 	const [isSending, setIsSending] = useState(false);
 
 	useEffect(() => {
+		console.log("🚀 Initializing WebSocket connection...");
+
 		// Initialize Echo client
 		const echo = getEcho();
 
 		// Listen for connection state changes
 		if (echo.connector.pusher) {
 			echo.connector.pusher.connection.bind("connected", () => {
-				console.log("WebSocket connected!");
+				console.log("✅ WebSocket connected!");
 				setIsConnected(true);
 			});
 
 			echo.connector.pusher.connection.bind("disconnected", () => {
-				console.log("WebSocket disconnected!");
+				console.log("❌ WebSocket disconnected!");
 				setIsConnected(false);
 			});
 
 			echo.connector.pusher.connection.bind("error", (error: any) => {
-				console.error("WebSocket error:", error);
+				console.error("⚠️ WebSocket error:", error);
+			});
+
+			echo.connector.pusher.connection.bind("state_change", (states: any) => {
+				console.log("🔄 Connection state changed:", states);
 			});
 		}
 
 		// Subscribe to the test channel
+		console.log("📡 Subscribing to channel: test-channel");
 		const channel = echo.channel("test-channel");
 
+		// Log subscription success
+		channel.subscribed(() => {
+			console.log("✅ Successfully subscribed to test-channel");
+		});
+
+		// Log subscription errors
+		channel.error((error: any) => {
+			console.error("❌ Subscription error:", error);
+		});
+
+		// Listen for ALL events on this channel (for debugging)
+		if (channel.pusherChannel) {
+			channel.pusherChannel.bind_global((eventName: string, data: any) => {
+				console.log("📨 Received event:", eventName, "with data:", data);
+			});
+		}
+
 		// Listen for the test event
+		console.log("👂 Listening for event: .test.event");
 		channel.listen(".test.event", (data: BroadcastMessage) => {
-			console.log("Received test event:", data);
+			console.log("🎉 Received test.event:", data);
 			const logMessage = `[${new Date().toLocaleTimeString()}] ${data.message}`;
 			setMessages((prev) => [...prev, logMessage]);
 		});
 
 		// Cleanup on unmount
 		return () => {
+			console.log("🧹 Cleaning up WebSocket connection...");
 			channel.stopListening(".test.event");
 			echo.leaveChannel("test-channel");
 		};
 	}, []);
 
 	const sendTestBroadcast = async () => {
+		console.log("🔔 Triggering test broadcast...");
 		setIsSending(true);
 		try {
 			const response = await fetch("http://localhost:8000/api/test/broadcast", {
@@ -67,9 +94,9 @@ export default function WebSocketTestPage() {
 			}
 
 			const result = await response.json();
-			console.log("Broadcast triggered:", result);
+			console.log("✅ Broadcast triggered successfully:", result);
 		} catch (error) {
-			console.error("Error triggering broadcast:", error);
+			console.error("❌ Error triggering broadcast:", error);
 			setMessages((prev) => [
 				...prev,
 				`[${new Date().toLocaleTimeString()}] Error: ${error}`,
@@ -166,13 +193,21 @@ export default function WebSocketTestPage() {
 							When you click the button, it sends a POST request to the backend
 						</li>
 						<li>
-							The backend broadcasts a <code>test.event</code> event
+							The backend broadcasts a <code>test.event</code> event immediately
+							(using ShouldBroadcastNow)
 						</li>
 						<li>The frontend receives the event and logs it to the console</li>
 						<li>The message is also displayed on this page</li>
 					</ol>
 					<p className="mt-4 text-sm text-gray-400">
-						Open the browser console (F12) to see the console.log() output!
+						<strong>⚡ Note:</strong> The leading dot in{" "}
+						<code>.test.event</code> is required by Laravel Echo when using
+						custom event names (via <code>broadcastAs()</code>). This is the
+						correct syntax!
+					</p>
+					<p className="mt-2 text-sm text-gray-400">
+						Open the browser console (F12) to see detailed debug logs with
+						emojis! 🎉
 					</p>
 				</div>
 			</div>
